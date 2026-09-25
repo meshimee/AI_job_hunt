@@ -7,22 +7,13 @@ from app.ai.ollama_client import ask_ai
 def analyze_job_description(job_description: str) -> dict:
     """
     Analyze a job description using the local Ollama model.
-
-    Returns structured information about the job.
     """
 
     if not job_description or not job_description.strip():
         raise ValueError("Job description cannot be empty.")
 
     prompt = f"""
-You are an expert technical recruiter and job description analyzer.
-
-Analyze the following job description.
-
-Return ONLY valid JSON.
-Do not include markdown.
-Do not include ```json.
-Do not add explanations outside the JSON.
+Analyze this job description and return ONLY valid JSON.
 
 Use exactly this structure:
 
@@ -45,15 +36,20 @@ Use exactly this structure:
 
 Rules:
 
-1. Extract only information supported by the job description.
-2. Do not invent skills or requirements.
-3. If information is missing, use an empty string or empty list.
-4. Keep skills as concise names.
-5. Separate required skills from preferred skills.
-6. Identify the business/industry domain.
-7. Extract important ATS keywords.
-8. Keep responsibilities concise.
-9. The final response must be valid JSON.
+- Do not invent information.
+- required_skills = explicitly required skills.
+- preferred_skills = preferred or nice-to-have skills.
+- technical_skills = programming languages, frameworks,
+  databases, APIs, cloud technologies, security technologies,
+  tools and other technical technologies.
+- soft_skills = communication, teamwork, leadership,
+  stakeholder management, analytical thinking and problem solving.
+- responsibilities = concise list of main responsibilities.
+- domain = industries or business areas.
+- keywords = important job and ATS keywords.
+- certifications = certifications explicitly mentioned.
+- summary = maximum 2 sentences.
+- Use empty strings or [] when information is unavailable.
 
 JOB DESCRIPTION:
 
@@ -68,27 +64,43 @@ JOB DESCRIPTION:
 def _parse_json_response(response: str) -> dict:
     """
     Convert the AI response into a Python dictionary.
-
-    Handles cases where the model accidentally returns
-    markdown code fences around the JSON.
     """
 
     response = response.strip()
 
-    # Remove markdown code fences if Ollama returns them
-    response = re.sub(r"^```json\s*", "", response, flags=re.IGNORECASE)
-    response = re.sub(r"^```\s*", "", response)
-    response = re.sub(r"\s*```$", "", response)
+    # Remove markdown code fences if the model returns them
+    response = re.sub(
+        r"^```json\s*",
+        "",
+        response,
+        flags=re.IGNORECASE
+    )
+
+    response = re.sub(
+        r"^```\s*",
+        "",
+        response
+    )
+
+    response = re.sub(
+        r"\s*```$",
+        "",
+        response
+    )
 
     try:
         data = json.loads(response)
+
     except json.JSONDecodeError as error:
         raise ValueError(
-            f"AI returned invalid JSON.\n\nAI Response:\n{response}"
+            f"AI returned invalid JSON.\n\n"
+            f"AI Response:\n{response}"
         ) from error
 
     if not isinstance(data, dict):
-        raise ValueError("AI response must be a JSON object.")
+        raise ValueError(
+            "AI response must be a JSON object."
+        )
 
     return data
 
@@ -96,13 +108,17 @@ def _parse_json_response(response: str) -> dict:
 def analyze_job_from_text(job_description: str) -> None:
     """
     Analyze a job description and print the result.
-
-    Useful for testing from the command line.
     """
 
     analysis = analyze_job_description(job_description)
 
-    print(json.dumps(analysis, indent=4, ensure_ascii=False))
+    print(
+        json.dumps(
+            analysis,
+            indent=4,
+            ensure_ascii=False
+        )
+    )
 
 
 if __name__ == "__main__":
